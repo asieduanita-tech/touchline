@@ -29,4 +29,5 @@ The application uses Next.js, React, TypeScript and Tailwind CSS.
 
 ## Why I built it
 
-Our team had limited information about upcoming opponents. I built Touchline to turn available league statistics into something useful for match preparation. The project combines operations thinking, data organisation and AI-assisted software development.
+My team had the same strategy for each game; since the team is playing in a new league, our coach was unfamiliar with most opponents. I built Touchline to turn available league statistics into something useful for match preparation. The project combines operations thinking, data organisation and AI-assisted software development.
+
