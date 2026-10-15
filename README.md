@@ -2,7 +2,7 @@
 
 **Pre-match intelligence for grassroots football.**
 
-Touchline turns match results, fixtures and goalscorer data into concise opponent scouting briefs, helping a women's Sunday league team prepare for matches with better information.
+Touchline turns match results and goalscorer data into tailored opponent briefs, helping a women's Sunday league football team prepare for matches with better information on goal threats and opponents' playing style.
 
 ## What it does
 
@@ -29,5 +29,5 @@ The application uses Next.js, React, TypeScript and Tailwind CSS.
 
 ## Why I built it
 
-My team had the same strategy for each game; since the team is playing in a new league, our coach was unfamiliar with most opponents. I built Touchline to turn available league statistics into something useful for match preparation. The project combines operations thinking, data organisation and AI-assisted software development.
+My team had the same strategy for each game because our coach was unfamiliar with most opponents in our new league. As a result of this generic strategy, the team was not playing to its full potential and I wanted to do something about this. I built Touchline to use available league statistics to enhance our game preparation. The project combines operations thinking, data organisation, AI-assisted software development, and a bit of competitive spirit.
 
