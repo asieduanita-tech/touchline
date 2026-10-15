@@ -1,0 +1,15 @@
+node_modules/
+.next/
+out/
+dist/
+.vinext/
+.wrangler/
+.sites-runtime/
+upload/
+numbers-convert.*/
+fixtures-convert.*/
+validation-*.png
+*.tgz
+*.tar.gz
+.DS_Store
+.env*
