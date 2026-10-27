@@ -118,53 +118,36 @@ export const fallbackRawDataset: Dataset = {
   ]
 };
 
-const TEAM_ALIASES: Record<string, string> = {
-  "Electric Flamingos FC": "Electric Flamingos FC",
-  "Calamity Athletic": "Calamity Athletic",
-  "Moonshot United": "Moonshot United",
-  "The Plot Twists": "The Plot Twists",
-  "Neon Borough FC": "Neon Borough FC",
-  "Velvet Thunder FC": "Velvet Thunder FC",
-  "Parallel Lines FC": "Parallel Lines FC"
-};
+const PUBLIC_TEAMS = new Set([
+  "Electric Flamingos FC",
+  "Calamity Athletic",
+  "Moonshot United",
+  "The Plot Twists",
+  "Neon Borough FC",
+  "Velvet Thunder FC",
+  "Parallel Lines FC"
+]);
 
-const PLAYER_ALIASES: Record<string, string> = {
-  Nova: "Nova",
-  Vesper: "Vesper",
-  Comet: "Comet",
-  Glitch: "Glitch",
-  Aster: "Aster",
-  Blaze: "Blaze",
-  Echo: "Echo",
-  Ember: "Ember",
-  Eclipse: "Eclipse",
-  Jet: "Jet",
-  Juniper: "Juniper",
-  Karma: "Karma",
-  Lux: "Lux",
-  Nebula: "Nebula",
-  Nimbus: "Nimbus",
-  Sol: "Sol",
-  Sonic: "Sonic",
-  Storm: "Storm",
-  Tempo: "Tempo",
-  Zenith: "Zenith"
-};
+const PUBLIC_PLAYERS = new Set([
+  "Nova", "Vesper", "Comet", "Glitch", "Aster", "Blaze", "Echo", "Ember", "Eclipse", "Jet",
+  "Juniper", "Karma", "Lux", "Nebula", "Nimbus", "Sol", "Sonic", "Storm", "Tempo", "Zenith"
+]);
 
-const TEAM_CANONICAL: Record<string, string> = {
-  "black footy babes": "Electric Flamingos FC",
-  "Electric Flamingos FC": "Electric Flamingos FC",
-  "chaos": "Calamity Athletic",
-  "Calamity Athletic": "Calamity Athletic",
-  "cgl": "Moonshot United",
-  "Moonshot United": "Moonshot United",
-  "ex-girlfriend": "The Plot Twists",
-  "The Plot Twists": "The Plot Twists",
-  "Neon Borough FC": "Neon Borough FC",
-  "Velvet Thunder FC": "Velvet Thunder FC",
-  "sonder": "Parallel Lines FC",
-  "Parallel Lines FC": "Parallel Lines FC"
-};
+function privateAliases(variable: "TOUCHLINE_TEAM_ALIASES_JSON" | "TOUCHLINE_PLAYER_ALIASES_JSON") {
+  const raw = process.env[variable];
+  if (!raw) return {} as Record<string, string>;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(parsed)
+        .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+        .map(([key, value]) => [key.trim().toLowerCase(), value.trim()])
+    );
+  } catch {
+    console.error(`Touchline alias configuration is invalid: ${variable}`);
+    return {} as Record<string, string>;
+  }
+}
 
 const resultSchema = z.object({
   date: z.string().min(1),
@@ -198,7 +181,9 @@ function stableHash(value: string) {
 }
 
 function privateTeamAlias(team: string) {
-  if (TEAM_ALIASES[team]) return TEAM_ALIASES[team];
+  if (PUBLIC_TEAMS.has(team)) return team;
+  const configured = privateAliases("TOUCHLINE_TEAM_ALIASES_JSON")[team.trim().toLowerCase()];
+  if (configured) return configured;
   const nouns = ["Comets", "Foxes", "Kites", "Meteors", "Otters", "Rockets"];
   const adjectives = ["Cosmic", "Electric", "Midnight", "Solar", "Velvet", "Wild"];
   const hash = stableHash(team);
@@ -206,15 +191,16 @@ function privateTeamAlias(team: string) {
 }
 
 function privatePlayerAlias(player: string) {
-  if (PLAYER_ALIASES[player]) return PLAYER_ALIASES[player];
+  if (PUBLIC_PLAYERS.has(player)) return player;
+  const configured = privateAliases("TOUCHLINE_PLAYER_ALIASES_JSON")[player.trim().toLowerCase()];
+  if (configured) return configured;
   const names = ["Orbit", "Pixel", "Quasar", "Riff", "Spark", "Tempo"];
   const hash = stableHash(player);
   return `${names[hash % names.length]} ${String(hash % 97).padStart(2, "0")}`;
 }
 
 export function canonicalTeamName(value: string) {
-  const cleaned = value.trim().replace(/\s+/g, " ");
-  return TEAM_CANONICAL[cleaned.toLowerCase()] ?? cleaned;
+  return value.trim().replace(/\s+/g, " ");
 }
 
 export function normaliseDate(value: string) {
