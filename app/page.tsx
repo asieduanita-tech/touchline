@@ -1,18 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   Check,
   ChevronDown,
   Clipboard,
-  FileUp,
   LockKeyhole,
-  RotateCcw,
   Shield,
-  ShieldCheck,
   Target,
-  X
+  Upload
 } from "lucide-react";
 
 type Result = {
@@ -28,6 +25,11 @@ type Result = {
 type Fixture = { date: string; home_team: string; away_team: string };
 type Scorer = { team: string; player: string; goals: number };
 type Dataset = { results: Result[]; fixtures: Fixture[]; scorers: Scorer[]; archive?: Result[] };
+type DatasetMeta = {
+  updatedAt: string;
+  pendingScorers: boolean;
+  persistent: boolean;
+};
 type FormMatch = Result & { gf: number; ga: number; opponent: string; venue: "H" | "A"; outcome: "W" | "D" | "L" };
 
 const suppliedData: Dataset = {
@@ -105,49 +107,6 @@ const suppliedData: Dataset = {
   ]
 };
 
-const STORAGE_KEY = "touchline-city-goals-v3";
-
-function normaliseHeader(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, "_");
-}
-
-function parseCSV(text: string): Record<string, string>[] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = "";
-  let quoted = false;
-  for (let i = 0; i < text.length; i += 1) {
-    const char = text[i];
-    const next = text[i + 1];
-    if (char === '"' && quoted && next === '"') {
-      cell += '"';
-      i += 1;
-    } else if (char === '"') {
-      quoted = !quoted;
-    } else if (char === "," && !quoted) {
-      row.push(cell.trim());
-      cell = "";
-    } else if ((char === "\n" || char === "\r") && !quoted) {
-      if (char === "\r" && next === "\n") i += 1;
-      row.push(cell.trim());
-      if (row.some(Boolean)) rows.push(row);
-      row = [];
-      cell = "";
-    } else {
-      cell += char;
-    }
-  }
-  row.push(cell.trim());
-  if (row.some(Boolean)) rows.push(row);
-  if (rows.length < 2) throw new Error("The file needs a header row and at least one data row.");
-  const headers = rows[0].map(normaliseHeader);
-  return rows.slice(1).map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""])));
-}
-
-function validDate(value: string) {
-  return !Number.isNaN(new Date(`${value}T12:00:00`).getTime());
-}
-
 function goalLabel(goals: number) {
   return `${goals} ${goals === 1 ? "goal" : "goals"}`;
 }
@@ -220,32 +179,26 @@ function classNames(...values: Array<string | false | null | undefined>) {
 
 export default function Home() {
   const [data, setData] = useState<Dataset>(suppliedData);
-  const [draftData, setDraftData] = useState<Dataset>(suppliedData);
   const [myTeam, setMyTeam] = useState("Electric Flamingos FC");
   const [opponent, setOpponent] = useState("Velvet Thunder FC");
-  const [showImport, setShowImport] = useState(false);
   const [copied, setCopied] = useState(false);
   const [pendingScorers, setPendingScorers] = useState(true);
-  const [importState, setImportState] = useState<Record<string, { name: string; count: number }>>({});
-  const [error, setError] = useState("");
-  const inputRefs = {
-    results: useRef<HTMLInputElement>(null),
-    fixtures: useRef<HTMLInputElement>(null),
-    scorers: useRef<HTMLInputElement>(null)
-  };
+  const [datasetMeta, setDatasetMeta] = useState<DatasetMeta | null>(null);
+  const [datasetError, setDatasetError] = useState("");
 
   useEffect(() => {
     let active = true;
     fetch("/api/dataset", { cache: "no-store" })
       .then((response) => {
         if (!response.ok) throw new Error("Shared data is unavailable.");
-        return response.json() as Promise<{ data: Dataset; meta: { pendingScorers: boolean } }>;
+        return response.json() as Promise<{ data: Dataset; meta: DatasetMeta }>;
       })
       .then((response) => {
         if (!active) return;
         setData(response.data);
-        setDraftData(response.data);
         setPendingScorers(response.meta.pendingScorers);
+        setDatasetMeta(response.meta);
+        setDatasetError("");
         const nextFixture = response.data.fixtures
           .filter((match) => match.home_team === "Electric Flamingos FC" || match.away_team === "Electric Flamingos FC")
           .sort((a, b) => a.date.localeCompare(b.date))[0];
@@ -253,7 +206,10 @@ export default function Home() {
           setOpponent(nextFixture.home_team === "Electric Flamingos FC" ? nextFixture.away_team : nextFixture.home_team);
         }
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!active) return;
+        setDatasetError("Shared data could not be reached. Showing the bundled dataset instead.");
+      });
     return () => { active = false; };
   }, []);
 
@@ -273,10 +229,6 @@ export default function Home() {
     const scheduled = upcoming.map((match) => match.home_team === myTeam ? match.away_team : match.home_team);
     return scheduled.length ? [...new Set(scheduled)] : teams.filter((team) => team !== myTeam);
   }, [myTeam, teams, upcoming]);
-
-  useEffect(() => {
-    if (!opponents.includes(opponent)) setOpponent(opponents[0] ?? "");
-  }, [opponent, opponents]);
 
   const selectedFixture = upcoming.find((match) => match.home_team === opponent || match.away_team === opponent);
   const opponentMatches = useMemo(() => teamMatches(data.results, opponent), [data.results, opponent]);
@@ -370,81 +322,6 @@ export default function Home() {
     if (firstFixture) setOpponent(firstFixture.home_team === nextTeam ? firstFixture.away_team : firstFixture.home_team);
   }
 
-  function openImport() {
-    setDraftData(data);
-    setImportState({});
-    setError("");
-    setShowImport(true);
-  }
-
-  async function handleFile(type: "results" | "fixtures" | "scorers", file?: File) {
-    if (!file) return;
-    setError("");
-    try {
-      const rows = parseCSV(await file.text());
-      if (type === "results") {
-        const required = ["date", "home_team", "away_team", "home_score", "away_score"];
-        if (!required.every((key) => key in rows[0])) throw new Error(`Results needs: ${required.join(", ")}`);
-        const parsed = rows.map((row) => ({
-          date: row.date,
-          home_team: row.home_team,
-          away_team: row.away_team,
-          home_score: Number(row.home_score),
-          away_score: Number(row.away_score),
-          division: row.division ? Number(row.division) : undefined
-        }));
-        if (parsed.some((row) => !validDate(row.date) || !row.home_team || !row.away_team || !Number.isFinite(row.home_score) || !Number.isFinite(row.away_score))) throw new Error("Some result rows have an invalid date, team name or score.");
-        setDraftData((current) => ({ ...current, results: parsed }));
-      }
-      if (type === "fixtures") {
-        const required = ["date", "home_team", "away_team"];
-        if (!required.every((key) => key in rows[0])) throw new Error(`Fixtures needs: ${required.join(", ")}`);
-        const parsed = rows.map((row) => ({ date: row.date, home_team: row.home_team, away_team: row.away_team }));
-        if (parsed.some((row) => !validDate(row.date) || !row.home_team || !row.away_team)) throw new Error("Some fixture rows have an invalid date or missing team.");
-        setDraftData((current) => ({ ...current, fixtures: parsed }));
-      }
-      if (type === "scorers") {
-        const required = ["team", "player", "goals"];
-        if (!required.every((key) => key in rows[0])) throw new Error(`Goalscorers needs: ${required.join(", ")}`);
-        const parsed = rows.map((row) => ({ team: row.team, player: row.player, goals: Number(row.goals) }));
-        if (parsed.some((row) => !row.team || !row.player || !Number.isFinite(row.goals))) throw new Error("Some goalscorer rows have a missing team, player or invalid goals total.");
-        setDraftData((current) => ({ ...current, scorers: parsed }));
-      }
-      setImportState((current) => ({ ...current, [type]: { name: file.name, count: rows.length } }));
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "That file could not be read.");
-    }
-  }
-
-  function applyImports() {
-    const nextTeams = new Set<string>();
-    draftData.results.forEach((match) => { nextTeams.add(match.home_team); nextTeams.add(match.away_team); });
-    draftData.fixtures.forEach((match) => { nextTeams.add(match.home_team); nextTeams.add(match.away_team); });
-    const selectedTeam = nextTeams.has(myTeam) ? myTeam : [...nextTeams][0] ?? myTeam;
-    const nextFixture = draftData.fixtures
-      .filter((match) => match.home_team === selectedTeam || match.away_team === selectedTeam)
-      .sort((a, b) => a.date.localeCompare(b.date))[0];
-    const selectedOpponent = nextFixture
-      ? (nextFixture.home_team === selectedTeam ? nextFixture.away_team : nextFixture.home_team)
-      : [...nextTeams].find((team) => team !== selectedTeam) ?? opponent;
-    setData(draftData);
-    setMyTeam(selectedTeam);
-    setOpponent(selectedOpponent);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ data: draftData, myTeam: selectedTeam, opponent: selectedOpponent }));
-    setShowImport(false);
-  }
-
-  function restoreBundledData() {
-    setData(suppliedData);
-    setDraftData(suppliedData);
-    setMyTeam("Electric Flamingos FC");
-    setOpponent("Velvet Thunder FC");
-    setImportState({});
-    setError("");
-    window.localStorage.removeItem(STORAGE_KEY);
-    setShowImport(false);
-  }
-
   async function copyReport() {
     await navigator.clipboard.writeText(report);
     setCopied(true);
@@ -454,6 +331,25 @@ export default function Home() {
   const fixtureLabel = selectedFixture
     ? `${formatDate(selectedFixture.date)} · ${selectedFixture.home_team === myTeam ? "Home" : "Away"}`
     : "Fixture date TBC";
+
+  const threatPlan = topScorer
+    ? `${topScorer.player} leads their recorded scoring with ${topScorerIsMinimum ? "at least " : ""}${goalLabel(topScorer.goals)}. Limit the supply into them.`
+    : `No individual scorer is supported by the current records. Protect team shape first.`;
+  const opportunityPlan = oppSeason.games
+    ? `${opponent} concede ${oppSeason.avgGa.toFixed(1)} per match. ${oppSeason.avgGa >= 1.5 ? "Sustain pressure and finish attacks." : "Prioritise set pieces and high-quality chances."}`
+    : `There is not yet enough defensive evidence to identify a reliable opening.`;
+  const formPlan = formDifference === 0
+    ? `Recent form is level on ${myRecent.points} points each.`
+    : formDifference < 0
+      ? `${myTeam} hold the recent-form edge by ${Math.abs(formDifference)} point${Math.abs(formDifference) === 1 ? "" : "s"}.`
+      : `${opponent} hold the recent-form edge by ${formDifference} point${formDifference === 1 ? "" : "s"}.`;
+  const freshnessText = datasetError
+    ? datasetError
+    : datasetMeta
+      ? datasetMeta.persistent
+        ? `Shared dataset updated ${new Date(datasetMeta.updatedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}.`
+        : `Showing the bundled dataset from ${new Date(datasetMeta.updatedAt).toLocaleDateString("en-GB", { dateStyle: "medium" })}.`
+      : "Loading the latest shared dataset…";
 
   return (
     <main>
@@ -465,12 +361,13 @@ export default function Home() {
         </a>
         <div className="top-actions">
           <span className="privacy"><LockKeyhole size={13} /> Anonymised workspace</span>
+          <a className="outline-button" href="/admin"><Upload size={15} /> Manage data</a>
         </div>
       </header>
 
       <section className="hero" id="top">
         <div className="edition-line">
-          <span>Sunday League Demo</span>
+          <span>City Goals London</span>
           <span>Pre-match dossier</span>
           <span>{selectedFixture ? formatDate(selectedFixture.date) : "Date TBC"}</span>
         </div>
@@ -511,6 +408,26 @@ export default function Home() {
         <span>{pendingScorers ? "Goalscorers awaiting league update" : `${data.scorers.length} scorer records`}</span>
       </div>
 
+      <div className={classNames("data-status", (datasetError || (datasetMeta && !datasetMeta.persistent)) && "data-status-warning")} role="status" aria-live="polite">
+        <span>{freshnessText}</span>
+        {(datasetError || (datasetMeta && !datasetMeta.persistent)) && <button type="button" onClick={() => window.location.reload()}>Try again</button>}
+      </div>
+
+      <section className="matchday-plan" aria-labelledby="matchday-plan-title">
+        <header>
+          <div>
+            <h2 id="matchday-plan-title">Sunday plan</h2>
+            <p>The three decisions to carry into the match.</p>
+          </div>
+          <a href="#report">Preview and share brief</a>
+        </header>
+        <div className="plan-grid">
+          <article><span>Primary threat</span><p>{threatPlan}</p></article>
+          <article><span>Main opportunity</span><p>{opportunityPlan}</p></article>
+          <article><span>Form context</span><p>{formPlan}</p></article>
+        </div>
+      </section>
+
       <section className="analysis" aria-label="Opponent scouting analysis">
         <header className="dashboard-heading">
           <div>
@@ -519,7 +436,7 @@ export default function Home() {
           </div>
           <div className="form-badges" aria-label={`${opponent} recent form`}>
             <span>Last {recentOpponentMatches.length}</span>
-            {recentOpponentMatches.map((match) => <b className={match.outcome.toLowerCase()} key={`${match.date}-${match.opponent}`}>{match.outcome}</b>)}
+            {recentOpponentMatches.map((match) => <b className={match.outcome.toLowerCase()} aria-label={match.outcome === "W" ? "Win" : match.outcome === "D" ? "Draw" : "Loss"} key={`${match.date}-${match.opponent}`}>{match.outcome}</b>)}
           </div>
         </header>
 
@@ -532,9 +449,9 @@ export default function Home() {
                 const isDirectMatch = match.opponent === myTeam || myMatches.some((ours) => ours.date === match.date && ours.opponent === opponent);
                 return (
                   <div className="result-row" key={`${match.date}-${match.opponent}`}>
-                    <b className={`result-badge ${match.outcome.toLowerCase()}`}>{match.outcome}</b>
+                    <b className={`result-badge ${match.outcome.toLowerCase()}`} aria-label={match.outcome === "W" ? "Win" : match.outcome === "D" ? "Draw" : "Loss"}>{match.outcome}</b>
                     <span className="result-date">{formatDate(match.date, true)}</span>
-                    <span className="venue-badge">{match.venue}</span>
+                    <span className="venue-badge" aria-label={match.venue === "H" ? "Home" : "Away"}>{match.venue}</span>
                     <div className="result-team">
                       <strong>{match.opponent}</strong>
                       {!isDirectMatch && <span className={ourMatch ? `our-result ${ourMatch.outcome.toLowerCase()}` : "our-result"}>{ourMatch ? `Our result: ${ourMatch.outcome} ${ourMatch.gf}–${ourMatch.ga}` : "Our result: not played yet"}</span>}
@@ -594,7 +511,7 @@ export default function Home() {
               <div className="comparison-row" key={label}><strong>{us}</strong><span>{label}</span><strong>{them}</strong></div>
             ))}
             <div className={classNames("form-edge", formDifference > 0 ? "edge-them" : formDifference < 0 ? "edge-us" : "edge-level")}>
-              <span>↘</span><strong>{formEdgeLabel}</strong><b>{formDifference === 0 ? "Even" : `${Math.abs(formDifference)} pt${Math.abs(formDifference) === 1 ? "" : "s"}`}</b>
+              <strong>{formEdgeLabel}</strong><b>{formDifference === 0 ? "Even" : `${Math.abs(formDifference)} pt${Math.abs(formDifference) === 1 ? "" : "s"}`}</b>
             </div>
           </article>
         </div>
@@ -617,9 +534,13 @@ export default function Home() {
       </section>
 
       <section className="report-section" id="report">
-        <div className="brief-layout">
+        <details className="report-details">
+          <summary>
+            <span><strong>Preview and share the full brief</strong><small>Open the print-ready scouting report</small></span>
+            <ChevronDown size={18} aria-hidden="true" />
+          </summary>
+          <div className="brief-layout">
           <aside className="brief-intro">
-            <span className="brief-kicker">◎ Matchday brief</span>
             <h2>Your pre-match<br />scouting report.</h2>
             <p>Generated from the current-season results, fixtures and goalscorer records on this page.</p>
             <button className="brief-copy" onClick={copyReport}>{copied ? <Check size={18} /> : <Clipboard size={18} />}{copied ? "Copied" : "Copy team brief"}</button>
@@ -643,42 +564,12 @@ export default function Home() {
             </div>
             <footer className="paper-source"><CalendarDays size={15} /> Generated from {data.results.length} current results, {data.fixtures.length} fixtures and {data.scorers.length} scorer records.</footer>
           </article>
-        </div>
+          </div>
+        </details>
       </section>
 
       <footer className="site-footer"><span>TOUCHLINE · ANONYMISED</span><span>All team and player names are fictional · Match data remains unchanged</span></footer>
 
-      {showImport && (
-        <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setShowImport(false); }}>
-          <section className="import-modal" role="dialog" aria-modal="true" aria-labelledby="import-title">
-            <div className="modal-head">
-              <div><span className="kicker">Data room</span><h2 id="import-title">Replace data tables</h2></div>
-              <button className="icon-button" onClick={() => setShowImport(false)} aria-label="Close data replacement"><X size={20} /></button>
-            </div>
-            <p className="modal-copy">Each CSV replaces that entire table. Tables you do not upload remain unchanged. Nothing is appended or merged.</p>
-            <div className="import-list">
-              {([
-                ["results", "Replace match results", "date, home_team, away_team, home_score, away_score"],
-                ["fixtures", "Replace scheduled fixtures", "date, home_team, away_team"],
-                ["scorers", "Replace goalscorers", "team, player, goals"]
-              ] as const).map(([type, title, columns]) => (
-                <button className={classNames("import-row", importState[type] && "complete")} key={type} onClick={() => inputRefs[type].current?.click()}>
-                  <input ref={inputRefs[type]} type="file" accept=".csv,text/csv" hidden onChange={(event) => handleFile(type, event.target.files?.[0])} />
-                  <span className="file-icon">{importState[type] ? <Check size={19} /> : <FileUp size={19} />}</span>
-                  <span><strong>{title}</strong><small>{importState[type] ? `${importState[type].name} · ${importState[type].count} rows` : columns}</small></span>
-                  <span className="upload-label">{importState[type] ? "Choose another" : "Choose CSV"}</span>
-                </button>
-              ))}
-            </div>
-            {error && <div className="error-message">{error}</div>}
-            <div className="import-note"><ShieldCheck size={16} /><span><strong>Replacement is local to this browser.</strong> Advanced stats such as assists, cards and goal timings are not required.</span></div>
-            <div className="modal-actions">
-              <button className="text-button" onClick={restoreBundledData}><RotateCcw size={15} /> Restore bundled data</button>
-              <button className="solid-button" onClick={applyImports} disabled={!Object.keys(importState).length}>Replace selected tables</button>
-            </div>
-          </section>
-        </div>
-      )}
     </main>
   );
 }

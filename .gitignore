@@ -13,3 +13,7 @@ validation-*.png
 *.tar.gz
 .DS_Store
 .env*
+!.env.example
+.agents/
+.impeccable/
+.codex/hooks.json
