@@ -107,6 +107,34 @@ const suppliedData: Dataset = {
   ]
 };
 
+function swapTeamAlias(team: string) {
+  if (team === "Moonshot United") return "Parallel Lines FC";
+  if (team === "Parallel Lines FC") return "Moonshot United";
+  return team;
+}
+
+function swapDatasetAliases(dataset: Dataset): Dataset {
+  const swapMatch = (match: Result): Result => ({
+    ...match,
+    home_team: swapTeamAlias(match.home_team),
+    away_team: swapTeamAlias(match.away_team)
+  });
+
+  return {
+    results: dataset.results.map(swapMatch),
+    fixtures: dataset.fixtures.map((match) => ({
+      ...match,
+      home_team: swapTeamAlias(match.home_team),
+      away_team: swapTeamAlias(match.away_team)
+    })),
+    scorers: dataset.scorers.map((scorer) => ({
+      ...scorer,
+      team: swapTeamAlias(scorer.team)
+    })),
+    archive: dataset.archive?.map(swapMatch)
+  };
+}
+
 function goalLabel(goals: number) {
   return `${goals} ${goals === 1 ? "goal" : "goals"}`;
 }
@@ -178,7 +206,7 @@ function classNames(...values: Array<string | false | null | undefined>) {
 }
 
 export default function Home() {
-  const [data, setData] = useState<Dataset>(suppliedData);
+  const [data, setData] = useState<Dataset>(() => swapDatasetAliases(suppliedData));
   const [myTeam, setMyTeam] = useState("Electric Flamingos FC");
   const [opponent, setOpponent] = useState("Velvet Thunder FC");
   const [copied, setCopied] = useState(false);
