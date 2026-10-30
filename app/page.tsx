@@ -417,7 +417,7 @@ export default function Home() {
         <header>
           <div>
             <h2 id="matchday-plan-title">Sunday plan</h2>
-            <p>The three decisions to carry into the match.</p>
+            <p>Three matchday takeaways.</p>
           </div>
           <a href="#report">Preview and share brief</a>
         </header>
