@@ -20,18 +20,7 @@ const fallbackMeta: DatasetMeta = {
   persistent: false
 };
 
-function storageConfigured() {
-  return Boolean(
-    process.env.BLOB_READ_WRITE_TOKEN ||
-    (process.env.VERCEL_OIDC_TOKEN && process.env.BLOB_STORE_ID)
-  );
-}
-
 export async function getCurrentDataset(): Promise<DatasetResponse> {
-  if (!storageConfigured()) {
-    return { data: normaliseDataset(fallbackRawDataset), meta: fallbackMeta };
-  }
-
   try {
     const result = await get(DATASET_PATH, { access: "private" });
     if (!result || result.statusCode !== 200 || !result.stream) {
@@ -51,8 +40,6 @@ export async function saveDatasetVersion(input: {
   uploadedBy: string;
   scorersIncluded: boolean;
 }) {
-  if (!storageConfigured()) throw new Error("Persistent storage is not configured.");
-
   const current = await getCurrentDataset();
   const merged = normaliseDataset({
     results: input.partial.results ?? current.data.results,
