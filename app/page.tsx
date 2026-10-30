@@ -336,7 +336,7 @@ export default function Home() {
     ? `${topScorer.player} leads their recorded scoring with ${topScorerIsMinimum ? "at least " : ""}${goalLabel(topScorer.goals)}. Limit the supply into them.`
     : `No individual scorer is supported by the current records. Protect team shape first.`;
   const opportunityPlan = oppRecent.games
-    ? `${opponent} concede ${oppRecent.avgGa.toFixed(1)} per match across ${oppRecent.games === 1 ? "their latest match" : `their last ${oppRecent.games} matches`}. ${oppRecent.avgGa >= 1.5 ? "Use the full width, create passing angles and combine quickly into space." : "Avoid forcing passes through congestion; switch the point of attack and prioritise high-quality chances."}`
+    ? `${opponent} have conceded ${oppRecent.avgGa.toFixed(1)} goals per match across ${oppRecent.games === 1 ? "their latest match" : `their last ${oppRecent.games} matches`}. ${oppRecent.avgGa >= 1.5 ? "Use the full width, create passing angles and combine quickly into space." : "Avoid forcing passes through congested areas. Use the wings, and call for the ball when you are free so we can switch the point of attack and create more goalscoring opportunities."}`
     : `There is not yet enough defensive evidence to identify a reliable opening.`;
   const formPlan = formDifference === 0
     ? `Recent form is level on ${myRecent.points} points each.`
