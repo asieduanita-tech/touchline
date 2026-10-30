@@ -534,12 +534,7 @@ export default function Home() {
       </section>
 
       <section className="report-section" id="report">
-        <details className="report-details">
-          <summary>
-            <span><strong>Preview and share the full brief</strong><small>Open the print-ready scouting report</small></span>
-            <ChevronDown size={18} aria-hidden="true" />
-          </summary>
-          <div className="brief-layout">
+        <div className="brief-layout">
           <aside className="brief-intro">
             <h2>Your pre-match<br />scouting report.</h2>
             <p>Generated from the current-season results, fixtures and goalscorer records on this page.</p>
@@ -564,8 +559,7 @@ export default function Home() {
             </div>
             <footer className="paper-source"><CalendarDays size={15} /> Generated from {data.results.length} current results, {data.fixtures.length} fixtures and {data.scorers.length} scorer records.</footer>
           </article>
-          </div>
-        </details>
+        </div>
       </section>
 
       <footer className="site-footer"><span>TOUCHLINE · ANONYMISED</span><span>All team and player names are fictional · Match data remains unchanged</span></footer>
