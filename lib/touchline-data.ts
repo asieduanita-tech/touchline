@@ -133,6 +133,16 @@ const PUBLIC_PLAYERS = new Set([
   "Juniper", "Karma", "Lux", "Nebula", "Nimbus", "Sol", "Sonic", "Storm", "Tempo", "Zenith"
 ]);
 
+const CURATED_GENERATED_TEAM_ALIASES: Record<string, string> = {
+  "Electric Kites 35": "Electric Flamingos FC",
+  "Cosmic Foxes 61": "Calamity Athletic",
+  "Wild Kites 68": "Moonshot United",
+  "Cosmic Otters 19": "The Plot Twists",
+  "Cosmic Rockets 60": "Neon Borough FC",
+  "Cosmic Otters 72": "Velvet Thunder FC",
+  "Velvet Comets 68": "Parallel Lines FC"
+};
+
 function privateAliases(variable: "TOUCHLINE_TEAM_ALIASES_JSON" | "TOUCHLINE_PLAYER_ALIASES_JSON") {
   const raw = process.env[variable];
   if (!raw) return {} as Record<string, string>;
@@ -196,6 +206,8 @@ function privateTeamAlias(team: string) {
     }
   }
 
+  const curatedGeneratedAlias = CURATED_GENERATED_TEAM_ALIASES[alias];
+  if (curatedGeneratedAlias) return curatedGeneratedAlias;
   if (alias === "Moonshot United") return "Parallel Lines FC";
   if (alias === "Parallel Lines FC") return "Moonshot United";
   return alias;
