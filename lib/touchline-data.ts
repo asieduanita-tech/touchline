@@ -219,7 +219,7 @@ function privatePlayerAlias(player: string) {
   if (configured) return configured;
   const names = ["Orbit", "Pixel", "Quasar", "Riff", "Spark", "Tempo"];
   const hash = stableHash(player);
-  return `${names[hash % names.length]} ${String(hash % 97).padStart(2, "0")}`;
+  return names[hash % names.length];
 }
 
 export function canonicalTeamName(value: string) {
