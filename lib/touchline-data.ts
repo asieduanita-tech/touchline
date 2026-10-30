@@ -181,13 +181,24 @@ function stableHash(value: string) {
 }
 
 function privateTeamAlias(team: string) {
-  if (PUBLIC_TEAMS.has(team)) return team;
-  const configured = privateAliases("TOUCHLINE_TEAM_ALIASES_JSON")[team.trim().toLowerCase()];
-  if (configured) return configured;
-  const nouns = ["Comets", "Foxes", "Kites", "Meteors", "Otters", "Rockets"];
-  const adjectives = ["Cosmic", "Electric", "Midnight", "Solar", "Velvet", "Wild"];
-  const hash = stableHash(team);
-  return `${adjectives[hash % adjectives.length]} ${nouns[Math.floor(hash / adjectives.length) % nouns.length]} ${String(hash % 97).padStart(2, "0")}`;
+  let alias: string;
+  if (PUBLIC_TEAMS.has(team)) {
+    alias = team;
+  } else {
+    const configured = privateAliases("TOUCHLINE_TEAM_ALIASES_JSON")[team.trim().toLowerCase()];
+    if (configured) {
+      alias = configured;
+    } else {
+      const nouns = ["Comets", "Foxes", "Kites", "Meteors", "Otters", "Rockets"];
+      const adjectives = ["Cosmic", "Electric", "Midnight", "Solar", "Velvet", "Wild"];
+      const hash = stableHash(team);
+      alias = `${adjectives[hash % adjectives.length]} ${nouns[Math.floor(hash / adjectives.length) % nouns.length]} ${String(hash % 97).padStart(2, "0")}`;
+    }
+  }
+
+  if (alias === "Moonshot United") return "Parallel Lines FC";
+  if (alias === "Parallel Lines FC") return "Moonshot United";
+  return alias;
 }
 
 function privatePlayerAlias(player: string) {
