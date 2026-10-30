@@ -480,26 +480,6 @@ button { color: inherit; }
   box-shadow: none;
   background: #dfe3da;
 }
-.report-details { max-width: 1560px; margin: 0 auto; }
-.report-details > summary {
-  min-height: 72px;
-  padding: 0 4px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  border-top: 3px solid var(--green);
-  border-bottom: 1px solid var(--rule-dark);
-  cursor: pointer;
-  list-style: none;
-}
-.report-details > summary::-webkit-details-marker { display: none; }
-.report-details > summary span { display: grid; gap: 5px; }
-.report-details > summary strong { font-family: Georgia, "Times New Roman", serif; font-size: 22px; font-weight: 400; }
-.report-details > summary small { color: var(--muted); font-size: 13px; }
-.report-details > summary svg { color: var(--green); transition: transform .2s ease-out; }
-.report-details[open] > summary svg { transform: rotate(180deg); }
-.report-details[open] > .brief-layout { padding-top: 48px; }
 .brief-layout { max-width: 1560px; margin: 0 auto; display: grid; grid-template-columns: minmax(330px, .72fr) minmax(650px, 1.35fr); gap: clamp(44px, 7vw, 116px); align-items: center; }
 .brief-intro { padding: 24px 0; }
 .brief-kicker { display: block; color: var(--green); font-family: "Courier New", monospace; font-size: 13px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
@@ -657,9 +637,9 @@ button { color: inherit; }
 }
 
 @media print {
-  .topbar, .hero-controls, .data-strip, .data-status, .matchday-plan, .analysis, .site-footer, .solid-button, .report-details > summary { display: none !important; }
+  .topbar, .hero-controls, .data-strip, .data-status, .matchday-plan, .analysis, .site-footer, .solid-button { display: none !important; }
   .hero { padding: 0 0 26px; }
   .report-section { padding: 28px 0; border-top: 3px double black; }
-  .report-details > .brief-layout { display: grid !important; padding-top: 0 !important; }
+  .report-section > .brief-layout { display: grid !important; padding-top: 0 !important; }
   body { background: white; }
 }
