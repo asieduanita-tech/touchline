@@ -335,8 +335,8 @@ export default function Home() {
   const threatPlan = topScorer
     ? `${topScorer.player} leads their recorded scoring with ${topScorerIsMinimum ? "at least " : ""}${goalLabel(topScorer.goals)}. Limit the supply into them.`
     : `No individual scorer is supported by the current records. Protect team shape first.`;
-  const opportunityPlan = oppSeason.games
-    ? `${opponent} concede ${oppSeason.avgGa.toFixed(1)} per match. ${oppSeason.avgGa >= 1.5 ? "Sustain pressure and finish attacks." : "Prioritise set pieces and high-quality chances."}`
+  const opportunityPlan = oppRecent.games
+    ? `${opponent} concede ${oppRecent.avgGa.toFixed(1)} per match across ${oppRecent.games === 1 ? "their latest match" : `their last ${oppRecent.games} matches`}. ${oppRecent.avgGa >= 1.5 ? "Use the full width, create passing angles and combine quickly into space." : "Avoid forcing passes through congestion; switch the point of attack and prioritise high-quality chances."}`
     : `There is not yet enough defensive evidence to identify a reliable opening.`;
   const formPlan = formDifference === 0
     ? `Recent form is level on ${myRecent.points} points each.`
