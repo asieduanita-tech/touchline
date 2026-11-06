@@ -470,9 +470,9 @@ export default function Home() {
 
         <div className="dashboard-grid">
           <article className="dashboard-card results-card">
-            <div className="card-heading"><h3>Recent results</h3><span>Latest first</span></div>
+            <div className="card-heading"><h3>All results</h3><span>Latest first</span></div>
             <div className="result-list">
-              {recentOpponentMatches.length ? recentOpponentMatches.map((match) => {
+              {opponentMatches.length ? opponentMatches.map((match) => {
                 const ourMatch = myMatches.find((ours) => ours.opponent === match.opponent);
                 const isDirectMatch = match.opponent === myTeam || myMatches.some((ours) => ours.date === match.date && ours.opponent === opponent);
                 return (
